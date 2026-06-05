@@ -7,7 +7,7 @@ Works with any JetBrains IDE (IntelliJ, WebStorm, GoLand, PyCharm, etc.).
 
 ## Features
 
-- **Status bar widget** — compact `AI: 72%` display with color coding
+- **Status bar widget** — compact `AI: 30%` display with color coding
 - **Detail popup** — click for full breakdown: used/max tokens, progress bar, refill date
 - **Auto-refresh** — updates every 5 minutes, click to refresh manually
 - **Color coding** — default < 50%, yellow 50–79%, red ≥ 80%
