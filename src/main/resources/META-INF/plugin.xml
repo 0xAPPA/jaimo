@@ -1,0 +1,14 @@
+<idea-plugin>
+    <id>dev.xappa.jaimo</id>
+    <name>Jaimo</name>
+    <vendor>xappa.dev</vendor>
+    <description>Displays JetBrains AI quota usage in the IDE status bar.</description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="dev.xappa.jaimo.QuotaService"/>
+        <statusBarWidgetFactory implementation="dev.xappa.jaimo.QuotaStatusBarWidgetFactory"
+                                id="dev.xappa.jaimo.widget"/>
+    </extensions>
+</idea-plugin>
