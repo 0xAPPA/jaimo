@@ -1,4 +1,4 @@
-# Jaimo — JetBrains AI Quota Widget
+# Jaimo — JetBrains AI (Token Usage) Monitoring
 
 Displays your JetBrains AI quota usage directly in the IDE status bar.
 Works with any JetBrains IDE (IntelliJ, WebStorm, GoLand, PyCharm, etc.).
