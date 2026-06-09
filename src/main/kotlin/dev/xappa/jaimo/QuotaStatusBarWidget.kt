@@ -57,7 +57,7 @@ class QuotaStatusBarWidget : StatusBarWidget, StatusBarWidget.TextPresentation, 
 
     override fun getClickConsumer(): Consumer<MouseEvent>? = Consumer<MouseEvent> { e ->
         val sb = statusBar ?: return@Consumer
-        QuotaPopup.show(service.state, e.component, sb)
+        QuotaPopup.show(service.state, service.previousQuota, e.component, sb)
     }
 
     // QuotaStateListener

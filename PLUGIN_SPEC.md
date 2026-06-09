@@ -38,7 +38,7 @@ Extract: `next` refill date (ISO date, discard time).
 
 ### Refresh
 
-- Auto-refresh every **5 minutes** via a background timer
+- Auto-refresh every **10 minutes 30 seconds** via a background timer (aligned to IDE's ~10-min quota polling + 30s delay)
 - Manual refresh via clicking the widget or an action
 
 ### Display
@@ -48,16 +48,21 @@ Extract: `next` refill date (ISO date, discard time).
 AI: 72%
 ```
 
-**Popup (on click):** Monospaced detail panel:
+**Popup (on click):** Monospaced, selectable text panel:
 ```
-Used:    18,143,812 / 25,000,000 (72%)
 [####################--------] 72%
-Refill:  2026-06-13 (8 days)
+Used:       18,143,812 / 25,000,000
+Refill:     2026-06-13 (8 days)
+Updated:    09:03 (2h ago)
+Since last: +312,400
 ```
 
 - Progress bar: 28 chars wide, `#` = filled, `-` = unfilled
 - Numbers formatted with thousand separators (`,`)
+- "Since last" shows token delta since previous refresh (`+` prefix); omitted on first run
 - Refill shows ISO date + relative days
+- "Updated" shows log timestamp as `HH:mm` + relative time (`Xm ago` / `Xh ago` / `Xd ago`)
+- All text is selectable (uses `JTextArea` instead of `JLabel`)
 - If no quota data found: widget shows `AI: --` and popup shows "No quota data found"
 
 ### Color coding (status bar text)
@@ -149,7 +154,8 @@ data class QuotaState(
 ### `QuotaService.kt`
 - Application-level service (singleton across projects)
 - Holds current `QuotaState`
-- Schedules refresh every 5 minutes via `com.intellij.util.Alarm`
+- Schedules refresh every 10 min 30s via `com.intellij.util.Alarm`
+- Tracks `previousQuota` (token count before last refresh) for delta calculation
 - Exposes `fun refresh()` for manual trigger
 - Notifies listeners (widgets) on state change
 
@@ -161,8 +167,8 @@ data class QuotaState(
 - Text color based on usage threshold
 
 ### `QuotaPopup.kt`
-- `JBPopup` with monospaced `JBLabel` or `JTextArea`
-- Renders the 3-line detail view
+- `JBPopup` with monospaced, selectable `JTextArea`
+- Renders the 5-line detail view (bar, used, since last, refill, updated)
 - Shows on widget click
 
 ## Boundaries

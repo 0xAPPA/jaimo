@@ -7,6 +7,9 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.util.Alarm
 import java.nio.file.Path
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.CopyOnWriteArrayList
 
 fun interface QuotaStateListener {
@@ -24,9 +27,9 @@ class QuotaService : Disposable {
     var state: QuotaState = QuotaState()
         private set
 
-    init {
-        scheduleRefresh()
-    }
+    @Volatile
+    var previousQuota: Long? = null
+        private set
 
     fun refresh() {
         ApplicationManager.getApplication().executeOnPooledThread {
@@ -42,16 +45,10 @@ class QuotaService : Disposable {
         listeners.remove(listener)
     }
 
-    private fun scheduleRefresh() {
-        alarm.addRequest({
-            doRefresh()
-            scheduleRefresh()
-        }, REFRESH_INTERVAL_MS)
-    }
-
     private fun doRefresh() {
         try {
             val logFile = resolveLogFile()
+            previousQuota = state.quota?.current
             state = QuotaLogParser.parse(logFile)
         } catch (e: Exception) {
             log.warn("Failed to parse quota from idea.log", e)
@@ -64,6 +61,25 @@ class QuotaService : Disposable {
                 log.warn("Listener error", e)
             }
         }
+        scheduleNextRefresh()
+    }
+
+    private fun scheduleNextRefresh() {
+        val timestamp = state.quota?.timestamp
+        val delayMs = if (timestamp != null) {
+            try {
+                val dt = LocalDateTime.parse(timestamp, TIMESTAMP_PARSER)
+                val nextRefreshAt = dt.plusSeconds((REFRESH_INTERVAL_MS + REFRESH_BUFFER_MS) / 1000)
+                val delay = ChronoUnit.MILLIS.between(LocalDateTime.now(), nextRefreshAt)
+                if (delay > 0) delay else RETRY_DELAY_MS
+            } catch (_: Exception) {
+                REFRESH_INTERVAL_MS.toLong()
+            }
+        } else {
+            RETRY_DELAY_MS
+        }
+        alarm.cancelAllRequests()
+        alarm.addRequest({ doRefresh() }, delayMs)
     }
 
     private fun resolveLogFile(): Path {
@@ -73,7 +89,10 @@ class QuotaService : Disposable {
     override fun dispose() {}
 
     companion object {
-        private const val REFRESH_INTERVAL_MS = 5 * 60 * 1000
+        const val REFRESH_INTERVAL_MS = 10 * 60 * 1000 + 30_000
+        const val REFRESH_BUFFER_MS = 30_000L
+        private const val RETRY_DELAY_MS = 60_000L
+        private val TIMESTAMP_PARSER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
         @JvmStatic
         fun getInstance(): QuotaService =
