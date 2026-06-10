@@ -26,11 +26,13 @@ object QuotaPopup {
     private val ERROR_COLOR = JBColor(Color(0xCC, 0x33, 0x33), Color(0xFF, 0x55, 0x55))
 
     fun show(state: QuotaState, previousQuota: Long?, component: Component, statusBar: StatusBar) {
-        val text = buildText(state, previousQuota)
+        val measurementService = MeasurementService.getInstance()
+        val measurement = measurementService.measurement
+        val text = buildText(state, previousQuota, measurement)
         val color = state.quota?.let {
             colorForPercent((it.current * 100 / it.maximum).toInt())
         }
-        val panel = buildPanel(text, color)
+        val panel = buildPanel(text, color, state, previousQuota, measurement, measurementService)
 
         val popup = JBPopupFactory.getInstance()
             .createComponentPopupBuilder(panel, panel)
@@ -43,7 +45,14 @@ object QuotaPopup {
         popup.show(point)
     }
 
-    private fun buildPanel(text: String, barColor: Color?): JPanel {
+    private fun buildPanel(
+        text: String,
+        barColor: Color?,
+        state: QuotaState,
+        previousQuota: Long?,
+        measurement: MeasurementState,
+        measurementService: MeasurementService,
+    ): JPanel {
         val panel = JPanel(BorderLayout()).apply {
             border = BorderFactory.createEmptyBorder(8, 10, 8, 10)
             isOpaque = false
@@ -56,29 +65,61 @@ object QuotaPopup {
             border = null
         }
 
+        renderText(textPane, text, barColor)
+
+        panel.add(textPane, BorderLayout.CENTER)
+
+        val button = JButton(measurementLabel(measurement))
+        button.isEnabled = state.quota != null || measurement.endTokens != null
+        button.addActionListener {
+            val quota = state.quota
+            val m = measurementService.measurement
+            when {
+                m.endTokens != null -> measurementService.clear()
+                m.startTokens != null && quota != null -> measurementService.setEnd(quota.current, quota.timestamp)
+                quota != null -> measurementService.setStart(quota.current, quota.timestamp)
+            }
+            val updated = measurementService.measurement
+            button.text = measurementLabel(updated)
+            button.isEnabled = state.quota != null || updated.endTokens != null
+            renderText(textPane, buildText(state, previousQuota, updated), barColor)
+            panel.revalidate()
+        }
+
+        val buttonPanel = JPanel(FlowLayout(FlowLayout.LEFT, 0, 4)).apply {
+            isOpaque = false
+            add(button)
+        }
+        panel.add(buttonPanel, BorderLayout.SOUTH)
+
+        return panel
+    }
+
+    private fun measurementLabel(m: MeasurementState) = when {
+        m.endTokens != null -> "Clear"
+        m.startTokens != null -> "End"
+        else -> "Start"
+    }
+
+    private fun renderText(textPane: JTextPane, text: String, barColor: Color?) {
         val doc = textPane.styledDocument
+        doc.remove(0, doc.length)
         val defaultStyle = SimpleAttributeSet().apply {
             StyleConstants.setForeground(this, UIManager.getColor("Label.foreground") ?: textPane.foreground)
         }
-
         if (barColor != null) {
             val firstLineEnd = text.indexOf('\n').let { if (it < 0) text.length else it }
             val colorStyle = SimpleAttributeSet().apply {
                 StyleConstants.setForeground(this, barColor)
             }
             doc.insertString(0, text.substring(0, firstLineEnd), colorStyle)
-            if (firstLineEnd < text.length) {
-                doc.insertString(doc.length, text.substring(firstLineEnd), defaultStyle)
-            }
+            if (firstLineEnd < text.length) doc.insertString(doc.length, text.substring(firstLineEnd), defaultStyle)
         } else {
             doc.insertString(0, text, defaultStyle)
         }
-
-        panel.add(textPane, BorderLayout.CENTER)
-        return panel
     }
 
-    fun buildText(state: QuotaState, previousQuota: Long? = null): String {
+    fun buildText(state: QuotaState, previousQuota: Long? = null, measurement: MeasurementState = MeasurementState()): String {
         if (state.error != null) return "Error: ${state.error}"
         val quota = state.quota ?: return "No quota data found"
         val percent = (quota.current * 100 / quota.maximum).toInt()
@@ -97,9 +138,35 @@ object QuotaPopup {
         if (previousQuota != null) {
             val delta = quota.current - previousQuota
             val sign = if (delta >= 0) "+" else ""
-            sb.append("Since last: $sign${NUMBER_FORMAT.format(delta)}")
+            sb.appendLine("Since last: $sign${NUMBER_FORMAT.format(delta)}")
+        }
+        val measureLine = buildMeasurementLine(measurement)
+        if (measureLine != null) {
+            sb.append(measureLine)
         }
         return sb.toString().trimEnd()
+    }
+
+    fun buildMeasurementLine(measurement: MeasurementState): String? {
+        val start = measurement.startTokens ?: return null
+        val startTime = formatTime(measurement.startTimestamp)
+        val end = measurement.endTokens
+        return if (end != null) {
+            val endTime = formatTime(measurement.endTimestamp)
+            val delta = end - start
+            "Measure:    ${NUMBER_FORMAT.format(start)} \u2192 ${NUMBER_FORMAT.format(end)} = +${NUMBER_FORMAT.format(delta)} ($startTime \u2192 $endTime)"
+        } else {
+            "Measure:    \u25B6 ${NUMBER_FORMAT.format(start)} ($startTime)"
+        }
+    }
+
+    private fun formatTime(timestamp: String?): String {
+        if (timestamp == null) return "?"
+        return try {
+            LocalDateTime.parse(timestamp, TIMESTAMP_PARSER).format(TIME_FORMAT)
+        } catch (_: Exception) {
+            timestamp
+        }
     }
 
     private fun formatTimestamp(timestamp: String): String {

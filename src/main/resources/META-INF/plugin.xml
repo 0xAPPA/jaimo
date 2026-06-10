@@ -8,6 +8,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="dev.xappa.jaimo.QuotaService"/>
+        <applicationService serviceImplementation="dev.xappa.jaimo.MeasurementService"/>
         <statusBarWidgetFactory implementation="dev.xappa.jaimo.QuotaStatusBarWidgetFactory"
                                 id="dev.xappa.jaimo.widget"/>
     </extensions>

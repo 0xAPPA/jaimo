@@ -17,3 +17,10 @@ data class QuotaState(
     val refill: RefillInfo? = null,
     val error: String? = null,
 )
+
+data class MeasurementState(
+    val startTokens: Long? = null,
+    val startTimestamp: String? = null,
+    val endTokens: Long? = null,
+    val endTimestamp: String? = null,
+)
