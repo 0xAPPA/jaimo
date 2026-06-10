@@ -11,6 +11,7 @@ Works with any JetBrains IDE (IntelliJ, WebStorm, GoLand, PyCharm, etc.).
 - **Detail popup** — click for full breakdown: used/max tokens, progress bar, refill date
 - **Auto-refresh** — updates every 5 minutes, click to refresh manually
 - **Color coding** — default < 50%, yellow 50–79%, red ≥ 80%
+- **Measurement points** — mark a start and end point to measure tokens consumed in any interval; persists across restarts
 - **Zero network** — reads only the local IDE log file
 
 ## Install
@@ -36,6 +37,18 @@ To run in a sandboxed IDE for testing:
 ```bash
 ./gradlew runIde
 ```
+
+## Measuring token consumption
+
+Click the widget to open the popup, then use the button at the bottom to bracket any interval:
+
+1. **Start** — captures the current token count
+2. Code — do some agentic coding
+3. Restart — restart your IDE to trigger quota state refresh
+2. **End** — captures again and shows the delta: `18,143,812 → 18,456,212 = +312,400 (09:03 → 11:47)`
+3. **Clear** — resets for the next measurement
+
+The measurement persists across IDE restarts until cleared.
 
 ## How it works
 
